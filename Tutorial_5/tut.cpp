@@ -1,0 +1,188 @@
+#include <string>
+#include <memory>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <stdexcept>
+#include <sstream>
+#define CATCH_CONFIG_MAIN //So that catch will define a main method
+#include "catch.hpp"
+#include "counter.h"
+
+class Graph; //forward declare so that we can befriend this class
+
+class Node : public sjp::counter<Node> { //Node inherits from sjp::counter<T>
+friend class Graph; //why do we need to do this?
+private:
+	std::string datum;
+	std::size_t my_index;
+	// std::vector<Node *> neighbours; //<--------------------------------------ENABLE ONLY FOR TASK 1
+	// std::vector<std::shared_ptr<Node>> neighbours; //<---------------------ENABLE ONLY FOR TASK 2
+	std::vector<std::weak_ptr<Node>> neighbours; //<-----------------------ENABLE ONLY FOR TASK 3
+
+	//A private constructor, how does this constructor get called?
+	Node(const std::string & val, const std::size_t index) : datum(val), my_index(index) {} //only the graph may construct nodes
+public:
+	std::size_t get_index() const noexcept { return my_index; } //noexcept is optional, allows certain optimizations in try-catch contexts
+	std::string get_value() const noexcept { return datum; }
+	virtual ~Node() {}
+};
+
+class Graph {
+private:
+	// std::vector<Node *> nodes; //<---------------------------------------------ENABLE ONLY FOR TASK 1
+	std::vector<std::shared_ptr<Node>> nodes; //<----------------------------ENABLE ONLY FOR TASKS 2 & 3
+public:
+	Graph() {}
+	int add_node(const std::string & value);
+	void connect(const std::size_t from, const std::size_t to);
+	bool is_connected(const std::size_t from, const std::size_t to) const;
+	void print() const;
+
+	//if implemented using raw pointers this object will leak memory because we haven't implemented the destructor correctly
+	//Remember: an automatic variable is destroyed when the scope "{ }" it was declared in closes (ie. as soon as "}" is encountered)
+	//--- the RAII paradigm. However, an automatic variable is responsible to clean up any dynamically allocated resources (memory,
+	//file pointers, etc.)
+	// virtual ~Graph(); // <--------------------------- ENABLE ONLY FOR TASK 1
+	virtual ~Graph() {} // <---------------------- ENABLE ONLY FOR TASK 2, & 3
+};
+
+//Graph implementation
+int Graph::add_node(const std::string & value) {
+	// Node * const new_node = new Node(value, nodes.size()); //0<---------------------------------ENABLE ONLY FOR TASK 1
+	const std::shared_ptr<Node> new_node(new Node(value, nodes.size())); //<-----------------ENABLE ONLY FOR TASKS 2 & 3
+	nodes.push_back(new_node);
+	return nodes.size() - 1; //id to the new node
+}
+
+void Graph::connect(const std::size_t from, const std::size_t to) {
+	if (from >= nodes.size() || to >= nodes.size()) {
+		const std::string errorpos = (from >= nodes.size()) ? "from" : "to";
+		throw std::runtime_error("Invalid " + errorpos + " index parameter");
+	}
+	nodes[from]->neighbours.push_back(nodes[to]);
+}
+
+bool Graph::is_connected(const std::size_t from, const std::size_t to) const {
+	if (from >= nodes.size() || to >= nodes.size()) {
+		const std::string errorpos = (from >= nodes.size()) ? "from" : "to";
+		throw std::runtime_error("Invalid " + errorpos + " index parameter");
+	}
+	for (auto neigh = nodes[from]->neighbours.begin(); neigh < nodes[from]->neighbours.end(); neigh++) {
+		// if ((*neigh)->get_index() == to) { return true; } //<-----------------------------------ENABLE ONLY FOR TASKS 1 & 2
+		if ((*neigh).lock()->get_index() == to) { return true; } //<---------------------------------ENABLE ONLY FOR TASK 3
+	} 
+	return false; //not found
+}
+
+void Graph::print() const {
+	using namespace std; //only within the current scope
+	//for (auto i = nodes.begin(); i != nodes.end(); ++i){
+	for (auto i : nodes) { //same as commented for loop above, but i is a reference, not a pointer-like iterator
+		cout << i->get_value() << " has the following connections: " << endl;
+		//for (auto neigh = (*i)->neighbours.begin(); neigh != (*i)->neighbours.end(); ++neigh) {
+		for (auto neigh : i->neighbours) { //same as commented for loop above, but neigh is a reference to neighbor[i], not a pointer-like iterator
+			// cout << "\t" << neigh->get_value() << endl; //<-----------------------------ENABLE ONLY FOR TASKS 1 & 2 
+			cout << "\t" << neigh.lock()->get_value() << endl; //<--------------------ENABLE ONLY FOR TASK 3
+		}
+	}
+}
+
+///* <------------------------------- ENABLE ONLY FOR TASK 1
+// Graph::~Graph()
+// {
+// 	//Implement the Graph destructor for Task 1 here
+// 	for (Node* node : nodes){
+// 		delete node;
+// 	}
+// }
+//*/
+
+
+
+//<-------------------------------------TAKE A LOOK AT THESE SIMPLE TEST CASES FOR TASK 1 --------------------------------------------->
+TEST_CASE("INSERTION","This tests simple insertion") {
+	{
+		Node::alive = 0; //reset the alive counter for class Node
+		std::cout << "SIMPLE INSERTION TEST" << std::endl;
+		Graph g;
+		const auto a = g.add_node("a");
+		const auto b = g.add_node("b");
+		REQUIRE(Node::alive==2);
+	}
+	REQUIRE(Node::alive==0);
+}
+
+TEST_CASE("ACYCLIC CONNECTION","This tests a simple acyclic case") {
+	{
+		Node::alive = 0;
+		std::cout << "ACYCLIC DIRECTIONAL GRAPH" << std::endl;
+		std::cout << "a -> b --\\/" << std::endl;
+		std::cout << "  -> c -->d" << std::endl;
+		Graph g;
+		const auto a = g.add_node("a");
+		const auto b = g.add_node("b");
+		const auto c = g.add_node("c");
+		const auto d = g.add_node("d");
+
+		g.connect(a,b);
+		g.connect(a,c);
+		g.connect(c,d);
+		g.connect(b,d);
+		
+		REQUIRE(g.is_connected(a,b));
+		REQUIRE_FALSE(g.is_connected(b,a));
+		REQUIRE_FALSE(g.is_connected(b,c));
+		REQUIRE(g.is_connected(b,d));
+		REQUIRE(g.is_connected(a,c));
+		REQUIRE_FALSE(g.is_connected(c,a));
+		REQUIRE_FALSE(g.is_connected(c,b));
+		REQUIRE(g.is_connected(c,d));
+		REQUIRE_FALSE(g.is_connected(d,c));
+		REQUIRE_FALSE(g.is_connected(d,a));
+		REQUIRE_FALSE(g.is_connected(d,b));
+		g.print();
+		REQUIRE(Node::alive==4);
+	}
+	REQUIRE(Node::alive==0);
+
+}
+
+TEST_CASE("CYCLIC CONNECTION","This tests the cyclic connection case") {
+	{
+		Node::alive = 0;
+                std::cout << "CYCLIC DIRECTIONAL GRAPH" << std::endl;
+                std::cout << "a ---> b" << std::endl;
+                std::cout << "^  |-> c ---|" << std::endl;
+		std::cout << "|          \\/" << std::endl;
+		std::cout << "------------d" << std::endl;
+                Graph g;
+                const auto a = g.add_node("a");
+                const auto b = g.add_node("b");
+                const auto c = g.add_node("c");
+                const auto d = g.add_node("d");
+                REQUIRE_THROWS(g.connect(3,4));
+                REQUIRE_THROWS(g.connect(4,3));
+		REQUIRE_THROWS(g.is_connected(3,4));
+                REQUIRE_THROWS(g.is_connected(4,3));
+                g.connect(a,b);
+                g.connect(a,c);
+                g.connect(c,d);
+		g.connect(d,a);
+                REQUIRE(g.is_connected(a,b));
+                REQUIRE_FALSE(g.is_connected(b,a));
+                REQUIRE_FALSE(g.is_connected(b,c));
+                REQUIRE_FALSE(g.is_connected(b,d));
+                REQUIRE(g.is_connected(a,c));
+                REQUIRE_FALSE(g.is_connected(c,a));
+                REQUIRE_FALSE(g.is_connected(c,b));
+                REQUIRE(g.is_connected(c,d));
+                REQUIRE_FALSE(g.is_connected(d,c));
+                REQUIRE(g.is_connected(d,a));
+                REQUIRE_FALSE(g.is_connected(d,b));
+                g.print();
+                REQUIRE(Node::alive==4);
+    }
+    REQUIRE(Node::alive==0);
+
+}

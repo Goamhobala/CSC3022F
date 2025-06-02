@@ -5,8 +5,8 @@
 #include <string>
 #include <sstream>
 #define CATCH_CONFIG_MAIN
-#include "catch_amalgamated.hpp"
-#include<ostream>
+#include "catch.hpp"
+#include <ostream>
 #include <iostream>
 
 using namespace std;
@@ -147,7 +147,7 @@ bool is_close(const double a, const double b, const double epsilon=0.00000000000
 }
 
 //TODO 3: after completing the operators, uncomment the define /*const*/->const and see if all code compiles
-#define CONST const
+#define CONST
 
 
 

@@ -1,0 +1,19 @@
+answers.txt
+
+Part 2
+Q1: shared pointer is a smart pointer.
+ neighbours and nodes are vectors of smart pointers, 
+ which means that memory is automatically deallocated 
+ when the vectors are destroyed.
+Q2: We can't use unique pointers here
+ because there are pointers stored in neighbours and in nodes that point to the same resource.
+  If we used unique_pointers here, 
+  the multiple reference to the resource will throw a compile time error.
+  shared_pointers, on the other hand, allow for multiple references to the same object. 
+  Internally, this is implemented by having a counter to keep track of the number of references
+
+Part 3
+Q3: neighbours is now a vector of weak pointers as opposed to shared_pointers.
+ Now, the pointers in neighbours take no ownerships of the object, thereby not increasing
+ the reference counter in shared_pointers.  This ensures that the nodes being pointed to
+ by pointers in neighbours don't keep the nodes alive when the vector nodes is out of scope and the destructor of Node is expected to be called
