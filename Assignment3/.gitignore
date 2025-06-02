@@ -1,0 +1,11 @@
+./test
+test
+test.o
+
+./main
+main
+main.o
+
+./findcomp
+findcomp
+findcomp.o

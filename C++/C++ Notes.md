@@ -128,3 +128,30 @@ namespace {int a = 1;}
 std::cout << a << endl;
 ```
 * But don't mix it with the global namespace
+
+## Streams
+* A sequence of bytes that can be accessed sequentially.
+* Makes frequent use of **>>** extraction character (removing data from stream object) and **<< **insertion character (appending data to stream object)
+* **Manipulators** can be used to modify streams
+	* **setw()**: set the maximum numb er of characters to read 
+	```cpp
+	#include <iomanip>
+	char buf[10]{}
+	std::cin >> std::setw(10) >> buf;
+```
+	 * STD
+
+* char can be used directly like an int!
+
+### Move
+#### Does `std::move(lhs)` guarantee a move?
+
+No! `std::move(lhs)` **only casts `lhs` into an R-value reference**. The actual move **only happens if the move constructor is available**.
+
+If the class does not define a move constructor, the compiler **falls back to the copy constructor**
+
+### Smart pointers
+* Smart pointers are RAII-compliant wrapper classes for managing dynamically allocated objects. They ensure automatic resource cleanup via destructors, reducing the risk of memory leaks and dangling pointers.
+
+### Passing arguments
+* If the method signature takes in a value but a reference is passed as an argument instead, then the compiler will call the appropriate constructor automatically (i.e., move constructor if R value, copy constructor if L value)
